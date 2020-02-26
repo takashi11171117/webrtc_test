@@ -4,11 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <video autoplay></video>
 
     <script>
+        var socket = io();
+
+        socket.on('connected', msg => {
+            // イベントを受信してhtmlに表示
+            console.log(msg);
+        });
+
         navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
             getUserMedia: function(c) {
                 return new Promise(function(y, n) {
@@ -22,7 +30,7 @@
             console.log("getUserMedia() not supported.");
         }
 
-        const constraints = { audio: true, video: { width: 1280, height: 720 } };
+        const constraints = { audio: true, video: { width: 400, height: 400 } };
 
         navigator.mediaDevices.getUserMedia(constraints)
         .then(function(stream) {
