@@ -2,22 +2,24 @@ const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io').listen(server);
-const PORT = 3000;
+const port = 3000;
 
 app.get('/', function(req, res) {
   res.render('index.ejs');
 });
 
 const chat = io.on('connection', function (client) {
-  console.log('connected');
-  client.emit('connected', 'aaaaaa');
+  client.emit('connected');
+
+  client.on('init', function(req) {
+    console.log('init');
+    console.log(req);
+    client.join(req.room);
+    chat.to(req.room).emit('message', req.name + ' さんが入室');
+    client.broadcast.to(req.room).emit('announce', {
+      message: `New client in the ${req.room} room.`
+    })
+  });
 });
 
-// app.io.route('ready', function(req) {
-//   req.io.join(req.data)
-//   app.io.room(req.data).broadcast('announce', {
-//     message: `New client in the ${req.data} room.`
-//   })
-// })
-
-server.listen(PORT, () => console.log(`Example app listening on port ${PORT}!`));
+server.listen(port, () => console.log(`Example app listening on port ${port}!`));

@@ -12,8 +12,20 @@
     <script>
         var socket = io();
 
+        function random_string(len){
+            var char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";  // 使用する文字のリスト
+            var ret = "";
+            for(var i=0; i<len; i++)  // 指定の長さ繰り返す
+                ret += char_list[Math.floor(Math.random()*char_list.length)];  // 1文字追加
+            return ret;
+        }
+
         socket.on('connected', msg => {
-            // イベントを受信してhtmlに表示
+            console.log('connected');
+            socket.json.emit('init', { 'room': 'hoge', 'name': random_string(5) });
+        });
+
+        socket.on('message', msg => {
             console.log(msg);
         });
 
