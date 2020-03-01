@@ -12,12 +12,17 @@ const chat = io.on('connection', function (client) {
   client.emit('connected');
 
   client.on('init', function(req) {
-    console.log('init');
-    console.log(req);
     client.join(req.room);
-    chat.to(req.room).emit('message', req.name + ' さんが入室');
+    // chat.to(req.room).emit('message', req.name + ' さんが入室');
     client.broadcast.to(req.room).emit('announce', {
       message: `New client in the ${req.room} room.`
+    })
+  });
+
+  client.on('send', function(req) {
+    client.broadcast.to(req.room).emit('message', {
+      message: req.message,
+      author: req.author
     })
   });
 });

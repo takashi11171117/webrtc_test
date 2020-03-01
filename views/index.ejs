@@ -8,9 +8,20 @@
 </head>
 <body>
     <video autoplay></video>
+    <div>
+        <label>Your Name</label><input type="text" id="myName">
+        <label>Message</label><input type="text" id="myMassage">
+        <input type="submit" id="sendMessage">
+        <div id="chatArea">Message Output: <br/></div>
+    </div>
 
     <script>
-        var socket = io();
+        const socket = io();
+        const myName = document.querySelector("#myName");
+        const myMessage = document.querySelector("#myMassage");
+        const sendMessage = document.querySelector("#sendMessage");
+        const chatArea = document.querySelector("#chatArea");
+        const room = 'chat';
 
         function random_string(len){
             var char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";  // 使用する文字のリスト
@@ -22,39 +33,52 @@
 
         socket.on('connected', msg => {
             console.log('connected');
-            socket.json.emit('init', { 'room': 'hoge', 'name': random_string(5) });
+            socket.json.emit('init', { 'room': room });
         });
 
-        socket.on('message', msg => {
-            console.log(msg);
+        socket.on('message', function(data) {
+            displayMessage(data.author + ': ' + data.message);
         });
 
-        navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
-            getUserMedia: function(c) {
-                return new Promise(function(y, n) {
-                    (navigator.mozGetUserMedia ||
-                    navigator.webkitGetUserMedia).call(navigator, c, y, n);
-                });
-            }
-        } : null);
+        socket.on('announce', function(data) {
+            displayMessage(data.message);
+        });
 
-        if (!navigator.mediaDevices) {
-            console.log("getUserMedia() not supported.");
+        function displayMessage(message) {
+            chatArea.innerHTML = chatArea.innerHTML + '<br/>' + message;
         }
 
-        const constraints = { audio: true, video: { width: 400, height: 400 } };
+        sendMessage.addEventListener('click', (e) => {
+            socket.emit('send', {"author": myName.value, "message": myMessage.value, "room": room})
+            e.preventDefault();
+        }, false);
 
-        navigator.mediaDevices.getUserMedia(constraints)
-        .then(function(stream) {
-            var video = document.querySelector('video');
-            video.srcObject = stream
-            video.onloadedmetadata = function(e) {
-                video.play();
-            };
-        })
-        .catch(function(err) {
-            console.log(err.name + ": " + err.message);
-        });
+        // navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
+        //     getUserMedia: function(c) {
+        //         return new Promise(function(y, n) {
+        //             (navigator.mozGetUserMedia ||
+        //             navigator.webkitGetUserMedia).call(navigator, c, y, n);
+        //         });
+        //     }
+        // } : null);
+
+        // if (!navigator.mediaDevices) {
+        //     console.log("getUserMedia() not supported.");
+        // }
+
+        // const constraints = { audio: true, video: { width: 400, height: 400 } };
+
+        // navigator.mediaDevices.getUserMedia(constraints)
+        // .then(function(stream) {
+        //     var video = document.querySelector('video');
+        //     video.srcObject = stream
+        //     video.onloadedmetadata = function(e) {
+        //         video.play();
+        //     };
+        // })
+        // .catch(function(err) {
+        //     console.log(err.name + ": " + err.message);
+        // });
     </script>
 </body>
 </html>
