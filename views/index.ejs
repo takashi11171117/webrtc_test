@@ -7,12 +7,14 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <video autoplay></video>
+    <video autoplay id="myVideoTag"></video>
+    <video autoplay id="otherVideoTag"></video>
     <div>
         <label>Your Name</label><input type="text" id="myName">
         <label>Message</label><input type="text" id="myMassage">
         <input type="submit" id="sendMessage">
         <div id="chatArea">Message Output: <br/></div>
+        <div id="signalingArea">Singnaling Output: <br/></div>
     </div>
 
     <script>
@@ -21,23 +23,24 @@
         const myMessage = document.querySelector("#myMassage");
         const sendMessage = document.querySelector("#sendMessage");
         const chatArea = document.querySelector("#chatArea");
-        const room = 'chat';
+        const signalingArea = document.querySelector("#signalingArea");
+        const chat_room = 'chat';
+        const signal_room = 'signal_room';
+        const myVideoArea = document.querySelector("#myVideoTag");
+        const otherVideoArea = document.querySelector("#otherVideoTag");
 
-        function random_string(len){
-            var char_list = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";  // 使用する文字のリスト
-            var ret = "";
-            for(var i=0; i<len; i++)  // 指定の長さ繰り返す
-                ret += char_list[Math.floor(Math.random()*char_list.length)];  // 1文字追加
-            return ret;
-        }
-
-        socket.on('connected', msg => {
+        socket.on('connected', () => {
             console.log('connected');
-            socket.json.emit('init', { 'room': room });
+            socket.json.emit('init', { chat_room, signal_room });
+            socket.json.emit('signal', { type: 'user_here', message: 'Are you ready for a call?', room: signal_room});
         });
 
         socket.on('message', function(data) {
             displayMessage(data.author + ': ' + data.message);
+        });
+
+        socket.on('signaling_message', function(data) {
+            displaySignalingMessage(data.type + ': ' + data.message);
         });
 
         socket.on('announce', function(data) {
@@ -46,6 +49,10 @@
 
         function displayMessage(message) {
             chatArea.innerHTML = chatArea.innerHTML + '<br/>' + message;
+        }
+
+        function displaySignalingMessage(message) {
+            signalingArea.innerHTML = signalingArea.innerHTML + '<br/>' + message;
         }
 
         sendMessage.addEventListener('click', (e) => {
