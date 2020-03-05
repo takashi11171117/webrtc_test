@@ -18,6 +18,9 @@
     </div>
 
     <script>
+        window.RTCPeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+        window.RTCIceCandidate = window.RTCIceCandidate;
+
         const socket = io();
         const myName = document.querySelector("#myName");
         const myMessage = document.querySelector("#myMassage");
@@ -28,6 +31,12 @@
         const signal_room = 'signal_room';
         const myVideoArea = document.querySelector("#myVideoTag");
         const otherVideoArea = document.querySelector("#otherVideoTag");
+        const configuration = {
+            'iceServers': [{
+                url: 'stun:stun.l.google.com:19302'
+            }]
+        };
+        let pc;
 
         socket.on('connected', () => {
             console.log('connected');
@@ -35,13 +44,97 @@
             socket.json.emit('signal', { type: 'user_here', message: 'Are you ready for a call?', room: signal_room});
         });
 
-        socket.on('message', function(data) {
+        socket.on('message', data => {
             displayMessage(data.author + ': ' + data.message);
         });
 
-        socket.on('signaling_message', function(data) {
-            displaySignalingMessage(data.type + ': ' + data.message);
+        socket.on('signaling_message', data => {
+            displaySignalingMessage(data.type);
+
+            if (!pc)
+                startSignaling();
+            
+            if (data.type != 'user_here') {
+                const message = JSON.parse(data.message);
+                if (message.sdp) {
+                    pc.setRemoteDescription(
+                        new RTCSessionDescription(message.sdp),
+                        () => {
+                            if (pc.remoteDescription.type == "offer") {
+                                pc.createAnswer(localDescCreated, logError);
+                            }
+                        },
+                        logError
+                    )
+                } else {
+                    pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+                }
+            }
         });
+
+        function startSignaling() {
+            displaySignalingMessage('starting signaling ...');
+
+            pc = new RTCPeerConnection(configuration);
+
+            pc.onicecandidate = function (e) {
+                if (e.candidate) {
+                    socket.json.emit('signal', {
+                        type: 'ice candidate',
+                        message: JSON.stringify({ "candidate": e.candidate }),
+                        room: signal_room
+                    });
+                }
+                displaySignalingMessage("completed that ice candidate...");
+            };
+
+            pc.onnegotiationneeded = function () {
+                displaySignalingMessage("on negotiation called");
+                pc.createOffer(localDescCreated, logError);
+            }
+
+            pc.onaddstream = function (e) {
+                displaySignalingMessage("going to add their stream...");
+                otherVideoArea.srcObject = e.stream;
+            };
+
+            navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
+                getUserMedia: function(c) {
+                    return new Promise(function(y, n) {
+                        (navigator.mozGetUserMedia ||
+                        navigator.webkitGetUserMedia).call(navigator, c, y, n);
+                    });
+                }
+            } : null);
+
+            if (!navigator.mediaDevices) {
+                console.log("getUserMedia() not supported.");
+            }
+
+            const constraints = { audio: true, video: { width: 400, height: 400 } };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(stream) {
+                myVideoArea.srcObject = stream;
+                pc.addStream(stream);
+            })
+            .catch((err) => logError(err));
+        }
+
+        function localDescCreated(desc) {
+            pc.setLocalDescription(desc, function () {
+                displaySignalingMessage("sending local description");
+                socket.emit('signal', {
+                    type:"SDP",
+                    message: JSON.stringify({ sdp: pc.localDescription }),
+                    room: signal_room}
+                );
+            }, logError);
+        }
+
+        function logError(error) {
+            console.log(error.name + ": " + error.message);
+        }
 
         socket.on('announce', function(data) {
             displayMessage(data.message);
@@ -59,33 +152,6 @@
             socket.emit('send', {"author": myName.value, "message": myMessage.value, "room": room})
             e.preventDefault();
         }, false);
-
-        // navigator.mediaDevices = navigator.mediaDevices || ((navigator.mozGetUserMedia || navigator.webkitGetUserMedia) ? {
-        //     getUserMedia: function(c) {
-        //         return new Promise(function(y, n) {
-        //             (navigator.mozGetUserMedia ||
-        //             navigator.webkitGetUserMedia).call(navigator, c, y, n);
-        //         });
-        //     }
-        // } : null);
-
-        // if (!navigator.mediaDevices) {
-        //     console.log("getUserMedia() not supported.");
-        // }
-
-        // const constraints = { audio: true, video: { width: 400, height: 400 } };
-
-        // navigator.mediaDevices.getUserMedia(constraints)
-        // .then(function(stream) {
-        //     var video = document.querySelector('video');
-        //     video.srcObject = stream
-        //     video.onloadedmetadata = function(e) {
-        //         video.play();
-        //     };
-        // })
-        // .catch(function(err) {
-        //     console.log(err.name + ": " + err.message);
-        // });
     </script>
 </body>
 </html>
