@@ -37,6 +37,11 @@
             }]
         };
         let pc;
+        const dataChannelOptions = {
+            ordered: false,
+            maxRetransmitTime: 1000,
+        };
+        let dataChannel;
 
         socket.on('connected', () => {
             console.log('connected');
@@ -49,7 +54,7 @@
         });
 
         socket.on('signaling_message', data => {
-            displaySignalingMessage(data.type);
+            displaySignalMessage(data.type);
 
             if (!pc)
                 startSignaling();
@@ -73,9 +78,12 @@
         });
 
         function startSignaling() {
-            displaySignalingMessage('starting signaling ...');
+            displaySignalMessage('starting signaling ...');
 
             pc = new RTCPeerConnection(configuration);
+            dataChannel = pc.createDataChannel('textMessages', dataChannelOptions);
+            dataChannel.onopen = dataChannelStateChanged;
+            pc.ondatachannel = receiveDataChannel;
 
             pc.onicecandidate = function (e) {
                 if (e.candidate) {
@@ -85,16 +93,16 @@
                         room: signal_room
                     });
                 }
-                displaySignalingMessage("completed that ice candidate...");
+                displaySignalMessage("completed that ice candidate...");
             };
 
             pc.onnegotiationneeded = function () {
-                displaySignalingMessage("on negotiation called");
+                displaySignalMessage("on negotiation called");
                 pc.createOffer(localDescCreated, logError);
             }
 
             pc.onaddstream = function (e) {
-                displaySignalingMessage("going to add their stream...");
+                displaySignalMessage("going to add their stream...");
                 otherVideoArea.srcObject = e.stream;
             };
 
@@ -111,7 +119,7 @@
                 console.log("getUserMedia() not supported.");
             }
 
-            const constraints = { audio: true, video: { width: 400, height: 400 } };
+            const constraints = { audio: false, video: { width: 400, height: 400 } };
 
             navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
@@ -121,9 +129,27 @@
             .catch((err) => logError(err));
         }
 
+        function dataChannelStateChanged() {
+            if (dataChannel.readyState === 'open') {
+                displaySignalMessage("Data Channel open");
+                dataChannel.onmessage = receiveDataChannelMessage;
+            }
+        }
+
+        function receiveDataChannel(event) {
+            displaySignalMessage("Receiving a data channel");
+            dataChannel = event.channel;
+            dataChannel.onmessage = receiveDataChannelMessage;
+        }
+
+        function receiveDataChannelMessage(e) {
+            displaySignalMessage("Incoming Message");
+            displayMessage("From DataChannel: " + e.data);
+        }
+
         function localDescCreated(desc) {
             pc.setLocalDescription(desc, function () {
-                displaySignalingMessage("sending local description");
+                displaySignalMessage("sending local description");
                 socket.emit('signal', {
                     type:"SDP",
                     message: JSON.stringify({ sdp: pc.localDescription }),
@@ -144,12 +170,13 @@
             chatArea.innerHTML = chatArea.innerHTML + '<br/>' + message;
         }
 
-        function displaySignalingMessage(message) {
+        function displaySignalMessage(message) {
             signalingArea.innerHTML = signalingArea.innerHTML + '<br/>' + message;
         }
 
         sendMessage.addEventListener('click', (e) => {
-            socket.emit('send', {"author": myName.value, "message": myMessage.value, "room": room})
+            socket.emit('send', {"author": myName.value, "message": myMessage.value, "room": chat_room})
+            dataChannel.send(myName.value + ' says ' + myMessage.value);
             e.preventDefault();
         }, false);
     </script>
