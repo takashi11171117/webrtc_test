@@ -14,6 +14,7 @@ const chat = io.on('connection', function (client) {
   client.on('init', function(req) {
     client.join(req.chat_room);
     client.join(req.signal_room);
+    client.join(req.files_room);
     // chat.to(req.room).emit('message', req.name + ' さんが入室');
     client.broadcast.to(req.chat_room).emit('announce', {
       message: `New client in the ${req.chat_room} room.`
@@ -33,6 +34,13 @@ const chat = io.on('connection', function (client) {
       message: req.message
     })
   });
+
+  client.on('files', function(req) {
+    client.broadcast.to(req.room).emit('files', {
+      filename: req.filename,
+      filesize: req.filesize
+    });
+  })
 });
 
 server.listen(port, () => console.log(`Example app listening on port ${port}!`));

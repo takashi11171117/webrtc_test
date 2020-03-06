@@ -10,6 +10,12 @@
     <video autoplay id="myVideoTag"></video>
     <video autoplay id="otherVideoTag"></video>
     <div>
+        <input type="file" id="sendFile"/><br/>
+        <progress id="fileProgress" value=“1” max="100"></progress>
+        <a id="receivedFileLink"></a>
+        <hr>
+    </div>
+    <div>
         <label>Your Name</label><input type="text" id="myName">
         <label>Message</label><input type="text" id="myMassage">
         <input type="submit" id="sendMessage">
@@ -27,8 +33,12 @@
         const sendMessage = document.querySelector("#sendMessage");
         const chatArea = document.querySelector("#chatArea");
         const signalingArea = document.querySelector("#signalingArea");
+        const sendFile = document.querySelector("input#sendFile");
+        const fileProgress = document.querySelector("progress#fileProgress");
+        const downloadLink = document.querySelector('a#receivedFileLink');
         const chat_room = 'chat';
         const signal_room = 'signal_room';
+	    const files_room = 'files_room';
         const myVideoArea = document.querySelector("#myVideoTag");
         const otherVideoArea = document.querySelector("#otherVideoTag");
         const configuration = {
@@ -42,10 +52,15 @@
             maxRetransmitTime: 1000,
         };
         let dataChannel;
+        let receivedFileName;
+        let receivedFileSize;
+        let fileBuffer = [];
+        let fileSize = 0;
+        let isNegotiating = false;
 
         socket.on('connected', () => {
             console.log('connected');
-            socket.json.emit('init', { chat_room, signal_room });
+            socket.json.emit('init', { chat_room, signal_room, files_room });
             socket.json.emit('signal', { type: 'user_here', message: 'Are you ready for a call?', room: signal_room});
         });
 
@@ -77,6 +92,12 @@
             }
         });
 
+        socket.on('files', function(data) {
+            receivedFileName = data.filename;
+            receivedFileSize = data.filesize;
+            displaySignalMessage("websockets says the file on it's way is " + receivedFileName + " (" + receivedFileSize + ")");
+        });
+
         function startSignaling() {
             displaySignalMessage('starting signaling ...');
 
@@ -97,8 +118,17 @@
             };
 
             pc.onnegotiationneeded = function () {
+                if (isNegotiating) {
+                    console.log("SKIP nested negotiations");
+                    return;
+                }
+                isNegotiating = true;
                 displaySignalMessage("on negotiation called");
                 pc.createOffer(localDescCreated, logError);
+            }
+
+            pc.onsignalingstatechange = (e) => {
+                isNegotiating = (pc.signalingState != "stable");
             }
 
             pc.onaddstream = function (e) {
@@ -145,6 +175,18 @@
         function receiveDataChannelMessage(e) {
             displaySignalMessage("Incoming Message");
             displayMessage("From DataChannel: " + e.data);
+
+            fileBuffer.push(event.data);
+            fileSize += event.data.byteLength;
+            fileProgress.value = fileSize;
+
+            if (fileSize === receivedFileSize) {
+                var received = new window.Blob(fileBuffer);
+                fileBuffer = [];    
+                downloadLink.href = URL.createObjectURL(received);
+                downloadLink.download = receivedFileName;
+                downloadLink.appendChild(document.createTextNode(receivedFileName + "(" + fileSize + ") bytes"));
+            }
         }
 
         function localDescCreated(desc) {
@@ -178,6 +220,30 @@
             socket.emit('send', {"author": myName.value, "message": myMessage.value, "room": chat_room})
             dataChannel.send(myName.value + ' says ' + myMessage.value);
             e.preventDefault();
+        }, false);
+
+        sendFile.addEventListener('change', function(evt){
+            const file = sendFile.files[0];
+            displaySignalMessage("sending file " + file.name + " (" + file.size + ") ...");
+            socket.emit('files',{"filename": file.name, "filesize": file.size, "room": files_room});
+        
+            fileProgress.max = file.size;
+            const chunkSize = 16384;
+            const sliceFile = function(offset) {
+                const reader = new window.FileReader();
+                reader.onload = (function() {
+                    return function(e) {
+                        dataChannel.send(e.target.result);
+                        if (file.size > offset + e.target.result.byteLength) {
+                            window.setTimeout(sliceFile, 0, offset + chunkSize);
+                        }
+                        fileProgress.value = offset + e.target.result.byteLength;
+                    };
+                })(file);
+                const slice = file.slice(offset, offset + chunkSize);
+                reader.readAsArrayBuffer(slice);
+            };
+            sliceFile(0);
         }, false);
     </script>
 </body>
