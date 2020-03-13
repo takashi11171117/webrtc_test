@@ -11,3 +11,15 @@ app.get('/', function(req, res) {
 });
 
 server.listen(process.env.PORT || PORT, () => console.log(`Example app listening on port ${PORT}!`));
+
+io.on('connection', function (client) {
+  client.on('signal', function(req) {
+    client.join(req);
+    client.broadcast.to(req).emit('signal', {
+      user_type: req.user_type,
+      user_name: req.user_name,
+      user_data: req.user_data,
+      command: req.command
+    })
+  });
+});
