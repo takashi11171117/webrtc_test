@@ -131,3 +131,34 @@ function sendLocalDesc(desc) {
 
 function logError(error) {
 }
+
+const muteMyself = document.querySelector("#muteMyself");
+const pauseMyVideo = document.querySelector("#pauseMyVideo");
+
+muteMyself.addEventListener('click', function(ev){
+	console.log("muting/unmuting myself");
+	const streams = pc.getLocalStreams();
+	for (const stream of streams) {
+		for (const audioTrack of stream.getAudioTracks()) {
+			if (audioTrack.enabled) { muteMyself.innerHTML = "Unmute" }
+			else { muteMyself.innerHTML = "Mute Myself" }
+			audioTrack.enabled = !audioTrack.enabled;
+		}
+		console.log("Local stream: " + stream.id);
+	}
+	ev.preventDefault();
+}, false);
+
+pauseMyVideo.addEventListener('click', function(ev){
+	console.log("pausing/unpausing my video");
+	const streams = pc.getLocalStreams();
+	for (const stream of streams) {
+		for (const videoTrack of stream.getVideoTracks()) {
+			if (videoTrack.enabled) { pauseMyVideo.innerHTML = "Start Video" }
+			else { pauseMyVideo.innerHTML = "Pause Video" }
+			videoTrack.enabled = !videoTrack.enabled;
+		}
+		console.log("Local stream: " + stream.id);
+	}
+	ev.preventDefault();
+}, false);
