@@ -14,6 +14,11 @@ let pc;
 let isNegotiating = false;
 const mainVideoArea = document.querySelector("#mainVideoTag");
 const smallVideoArea = document.querySelector("#smallVideoTag");
+const dataChannelOptions = {
+  ordered: false,
+  maxRetransmitTime: 1000,
+};
+let dataChannel;
 
 socket.on('signal', (data) => {
   if (data.user_type == "doctor" && data.command == "joinroom") {
@@ -57,6 +62,10 @@ socket.on('signal', (data) => {
 function startSignaling() {
   console.log("starting signaling...");
   pc = new RTCPeerConnection(configuration);
+  dataChannel = pc.createDataChannel('textMessages', dataChannelOptions);
+  
+  dataChannel.onopen = dataChannelStateChanged;
+  pc.ondatachannel = receiveDataChannel;
 
   // send any ice candidates to the other peer
   pc.onicecandidate = function (evt) {
@@ -162,3 +171,39 @@ pauseMyVideo.addEventListener('click', function(ev){
 	}
 	ev.preventDefault();
 }, false);
+
+var messageHolder = document.querySelector("#messageHolder");
+var myMessage = document.querySelector("#myMessage");
+var sendMessage = document.querySelector("#sendMessage");
+
+function dataChannelStateChanged() {
+  if (dataChannel.readyState === 'open') {
+    console.log("Data Channel open");
+    dataChannel.onmessage = receiveDataChannelMessage;
+  }
+}
+
+function receiveDataChannel(event) {
+  console.log("Receiving a data channel");
+  dataChannel = event.channel;
+  dataChannel.onmessage = receiveDataChannelMessage;
+}
+
+function receiveDataChannelMessage(event) {
+  console.log("From DataChannel: " + event.data);
+  appendChatMessage(event.data, 'message-out');
+}
+
+sendMessage.addEventListener('click', function(ev){
+  dataChannel.send(myMessage.value);
+  appendChatMessage(myMessage.value, 'message-in');
+  myMessage.value = "";
+  ev.preventDefault();
+}, false);
+
+function appendChatMessage(msg, className) {
+  const div = document.createElement('div');
+  div.className = className;
+  div.innerHTML = '<span>' + msg + '</span>';
+  messageHolder.appendChild(div);
+}
