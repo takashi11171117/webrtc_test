@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.585.0.min.js"></script>
+    <script src="https://unpkg.com/amazon-kinesis-video-streams-webrtc/dist/kvs-webrtc.min.js"></script>
+</head>
+<body>
+    <div class="container mt-3">
+        <h1>KVS WebRTC Test Page</h1>
+        <p>This is the KVS Signaling Channel WebRTC test page. Use this page to connect to a signaling channel as either the MASTER or as a VIEWER.</p>
+
+        <div id="viewer">
+            <h2>Viewer</h2>
+            <div class="row">
+                <div class="col">
+                    <h5>From Master</h5>
+                    <div class="video-container"><video class="remote-view" autoplay playsinline controls /></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/local.js"></script>
+</body>
+</html>
