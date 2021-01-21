@@ -9,7 +9,7 @@
     "express": "^4.17.1",
     "nodemon": "^2.0.2",
     "require": "^2.4.20",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.4.0"
   },
   "scripts": {
     "sample": "nodemon server.js",
